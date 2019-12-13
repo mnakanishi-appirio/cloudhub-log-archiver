@@ -1,0 +1,36 @@
+#%RAML 1.0
+title: CloudHub Log Archiver
+
+baseUri: /api
+
+version: 2
+
+protocols:
+  - HTTPS
+
+traits:
+  client-id-enforcement: !include /exchange_modules/5d388810-7f3f-4aeb-8cc3-a56808debee6/fragment-client-id-enforcement/1.0.0/fragment.raml
+
+/v1/archive/all:
+  post:
+    displayName: archive all cloudhub logs
+    description: archive all cloudhub logs by manual operation. When scheduler is failed, you will use.
+    is: [client-id-enforcement]
+    responses:
+      200:
+        body:
+          application/json:
+            description: 実行結果
+            example: !include example/response.json
+            type: object
+            properties:
+              message:
+                description: 実行結果メッセージ
+                type: string
+                example: "Log Archive has been successfully finished."
+              targets:
+                description: アーカイブ対象のMule Application名
+                type: array
+                items:
+                  type: string
+                  example: "sample-app1"

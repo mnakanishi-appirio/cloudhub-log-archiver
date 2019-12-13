@@ -1,0 +1,4 @@
+{
+  "message": "Log Archive has been successfully finished.",
+  "targets": ["sample-app1", "sample-app2"]
+}

@@ -1,0 +1,20 @@
+box:
+  api:
+    host: "api.box.com"
+    port: "443"
+  upload:
+    host: "upload.box.com"
+    port: "443"
+    basepath: "/api"
+    
+mule:
+  access_management:
+    host: "anypoint.mulesoft.com"
+    port: "443"
+    basepath: "/accounts"
+  cloudhub:
+    host: "anypoint.mulesoft.com"
+    port: "443"
+    basepath: "/cloudhub/api"
+    
+apiid: ""

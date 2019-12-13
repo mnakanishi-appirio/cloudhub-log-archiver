@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:mule-box-connector="http://www.mulesoft.org/schema/mule/mule-box-connector"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mule-box-connector http://www.mulesoft.org/schema/mule/mule-box-connector/current/mule-mule-box-connector.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:request-config name="HTTPS_Box_API_Config" doc:name="HTTP Request configuration" doc:id="be4ffaf7-9166-426c-a6ff-17dd8f4d8bda" >
+		<http:request-connection protocol="HTTPS" host="${box.api.host}" port="${box.api.port}" />
+	</http:request-config>
+	<http:request-config name="HTTPS_Box_Upload_Config" doc:name="HTTP Request configuration" doc:id="0090a5dd-e99f-4cd5-ae6e-5e59e333229b" basePath="${box.upload.basepath}">
+		<http:request-connection protocol="HTTPS" host="${box.upload.host}" port="${box.upload.port}" />
+	</http:request-config>
+	<sub-flow name="archiveCloudHubLog_Main_SF" doc:id="adeac66a-f92c-4ef0-80f0-012fd234f14a">
+		<logger level="INFO" doc:name="Start" doc:id="235d066e-ad43-4ddc-8b9b-2b173042d705" message="#['Scheduler Started']"/>
+		<flow-ref doc:name="setup" doc:id="92b111e6-21a8-47df-ac60-aaa89b688c4b" name="setup_SF" />
+		<foreach doc:name="For Each" doc:id="1289a266-dcce-4583-900c-66144d401d37" collection="#[vars.targetDomains]">
+			<set-variable value="#[payload as String]" doc:name="TargetDomain" doc:id="0565e1bd-bbc2-4e3e-8dcd-41c784e7835a" variableName="targetDomain" />
+			<ee:transform doc:name="Set Box Target Folder Payload" doc:id="a952d813-f3c1-4a54-9d5d-b710e0e4c607" >
+				<ee:message >
+					<ee:set-payload resource="dw/createBoxDomainFolderConfig-transform.dwl" />
+				</ee:message>
+			</ee:transform>
+			<flow-ref doc:name="createFolderInBox" doc:id="a46a21f3-c526-487a-894a-347ef9a73a24" name="createFolderInBox_SF" target="domainFolderId" targetValue="#[payload.id as String]" />
+			<flow-ref doc:name="archiveLogFiles" doc:id="cd55b54b-7a42-4803-81e4-67ffecec2729" name="archiveLogFiles_SF" />
+		</foreach>
+		<flow-ref doc:name="logoutCloudHub" doc:id="0ac7a25b-e894-486b-ac03-fea97c93a7d8" name="logoutCloudHub_SF"/>
+		<ee:transform doc:name="Set Response" doc:id="f6d179bb-e5b8-4b76-b72f-876c210bef2e">
+			<ee:message>
+				<ee:set-payload resource="dw/createResponse-transform.dwl" />
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Finish" doc:id="594b598f-cac3-472e-b3a0-a4e556658872" message="#['Scheduler Finished']"/>
+	</sub-flow>
+	<sub-flow name="setup_SF" doc:id="f5540ffd-9129-4dcd-88e8-f8290c261ddd" >
+		<set-variable value="#[p('log.archive.environmentId') as String]" doc:name="EnvironmentId" doc:id="7eab9e06-0103-483f-81bc-a93de1d5cdfb" variableName="environmentId" />
+		<set-variable value="#[%dw 2.0
+import java!com::appirio::muleapp::util::BoxJwtAuthenticationUtils
+output application/json
+---
+BoxJwtAuthenticationUtils::getAccessToken() as String]" doc:name="BoxAccessToken" doc:id="7cf4920e-534d-4b1a-94eb-fd9764f28918" variableName="boxAccessToken" />
+		<ee:transform doc:name="Set CloudHub Login Payload" doc:id="f67925d8-bc1b-4472-8384-0e311818aa95" >
+			<ee:message >
+				<ee:set-payload resource="dw/createCloudHubLoginConfig-transform.dwl" />
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="loginCloudHub" doc:id="813b7108-d3ba-4fd2-a813-820a35622d94" name="loginCloudHub_SF"/>
+		<flow-ref doc:name="getCloudHubApplications" doc:id="0aa01f2b-6ec4-4768-be42-f86f70378f5e" name="getCloudHubApplications_SF"/>
+		<set-variable value="#[%dw 2.0
+output application/json
+---
+(vars.allDomains as Array) -- (p('log.archive.excludeDomains') as String default &quot;&quot; splitBy(&quot;,&quot;))]" doc:name="TargetDomains" doc:id="d4767c7f-4551-436f-a9ea-6aa7ccda567d" variableName="targetDomains"/>
+		<ee:transform doc:name="Set Box Root Folder Payload" doc:id="294ff262-8e51-44ee-ab26-f7c5b0391a92" >
+			<ee:message >
+				<ee:set-payload resource="dw/createBoxRootFolderConfig-transform.dwl" />
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="createFolderInBox" doc:id="86da1a57-ee32-4f91-9498-5f1d08e8e7f2" name="createFolderInBox_SF" target="todayFolderId" targetValue="#[payload.id as String]"/>
+	</sub-flow>
+	<sub-flow name="archiveLogFiles_SF" doc:id="d108314e-519d-4651-9baf-5d5dd7c80def" >
+		<flow-ref doc:name="cloudHubDeployments" doc:id="9e1ec786-90a5-46b1-b6ed-d0c79ca2c63d" name="getCloudHubDeployments_SF" />
+		<foreach doc:name="For Each" doc:id="aae128ff-3095-4173-b9f4-b15e8be30e8a" collection="#[vars.deployments]" counterVariableName="depCounter">
+			<set-variable value="#[payload]" doc:name="TargetDeployment" doc:id="b912b652-de80-4c57-b58d-c8751519e1e3" variableName="targetDeployment"/>
+			<foreach doc:name="For Each" doc:id="ce5b7686-23a4-483b-a169-76971328e506" collection="#[vars.targetDeployment.instances]" counterVariableName="insCounter">
+				<set-variable value="#[payload]" doc:name="Target Instance" doc:id="4356d3eb-ecac-46ad-9f32-1d44472b5332" variableName="targetInstance"/>
+				<set-variable value="#[payload.instanceId]" doc:name="InstanceId" doc:id="e352e2ce-e7d7-4b3d-8b7f-8da860d399bf" variableName="instanceId" />
+				<flow-ref doc:name="getLogFiles" doc:id="2240a1ef-2059-492c-916b-2948cdcc91bb" name="getCloudHubLogFiles_SF" />
+				<flow-ref doc:name="extractDiffs" doc:id="216a10a2-f0b4-4ec1-8f2a-a328a290a995" name="extractDiffs_SF" />
+			<choice doc:name="Choice" doc:id="06006d48-67e2-4cc7-90a9-3cbdbd857084" >
+					<when expression='#[vars.logDifference as String == "" and vars.targetInstance.status as String != "STARTED"]'>
+						<logger level="DEBUG" doc:name="Stopped instance" doc:id="1fa11d78-0308-4ece-9532-1dc49d5a68ae" message="#[vars.instanceId as String ++ ' has been stopped.']" />
+					</when>
+					<otherwise >
+						<ee:transform doc:name="Set Upload File Config" doc:id="706c4e75-26e7-4511-9092-26c4bd77cdec">
+					<ee:message>
+						<ee:set-payload resource="dw/createBoxUploadFileConfig-transform.dwl" />
+					</ee:message>
+				</ee:transform>
+						<flow-ref doc:name="uploadFileInBox" doc:id="9ac064d3-a175-49d1-9af1-ff374e06c595" name="uploadFileInBox_SF" />
+					</otherwise>
+				</choice>
+			</foreach>
+		</foreach>
+	</sub-flow>
+	<sub-flow name="extractDiffs_SF" doc:id="8e4b67cb-805b-47e3-8996-111c68d7b756" >
+		<set-variable value="#[vars.extractedLogs as String splitBy(/\n/) default[]]" doc:name="LogLines" doc:id="dfad2e7a-0e39-4694-a779-ee009f5d5e87" variableName="logLines" />
+		<set-variable value="#[%dw 2.0
+output application/json
+import java!com::appirio::muleapp::util::CloudHubLogUtils
+---
+CloudHubLogUtils::getLatestLoggedTimeStr(vars.logLines) as String]" doc:name="LatestLogTime" doc:id="a0649060-86c6-47b5-9280-b1ea4f61c5bf" variableName="latestLogTime" />
+		<try doc:name="Try" doc:id="ffacb1dc-a088-46b3-9eb9-32be3f18be51">
+					<os:retrieve doc:name="Retrieve Last Log DateTime" doc:id="4bad46c9-120c-4041-9d2d-bb19a4efe90f" key="#[vars.instanceId as String]" objectStore="LatestLoggedDateTime" />
+			<set-variable value="#[payload as String]" doc:name="StoredLatestLogTime" doc:id="aa1a2553-ef9c-4a20-8a37-e4f0229520d3" variableName="storedLatestLogTime" />
+			<choice doc:name="Choice" doc:id="d41de4ab-ec51-4afb-abf6-d259dea9f336">
+						<when expression="#[vars.latestLogTime == vars.storedLatestLogTime]">
+							<set-variable value='#[""]' doc:name="Log Difference" doc:id="cc6ad29f-931e-40dd-974c-e803533cc77a" variableName="logDifference" />
+						</when>
+			<otherwise>
+					<set-variable value="#[%dw 2.0
+output application/json
+import java!com::appirio::muleapp::util::CloudHubLogUtils
+---
+CloudHubLogUtils::extractDiff(vars.storedLatestLogTime, vars.logLines) as String]" doc:name="Log Difference" doc:id="bb407fe6-7d2c-4487-a86c-48f930e2f5a1" variableName="logDifference" />
+					<os:store doc:name="Store Latest Log DateTime" doc:id="2fddccdb-ebc2-4a03-98cb-7410ad762078" key="#[vars.instanceId as String]" objectStore="LatestLoggedDateTime">
+								<os:value><![CDATA[#[vars.latestLogTime as String]]]></os:value>
+							</os:store>
+						</otherwise>
+					</choice>
+			<error-handler>
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="bc5e7d5a-97dd-4ab2-bbae-33f1c352ac7f" type="OS:KEY_NOT_FOUND">
+							<logger level="DEBUG" doc:name="Logger" doc:id="e1e61e47-0b1b-4ff4-80d1-b8043b2c8148" message="#['\n[ObjectStore Info] instanceId='] #[vars.instanceId] #['\n This is the first deployment log']" />
+							<os:store doc:name="Store Latest Log DateTime" doc:id="42a1af52-4fab-43e4-97da-1e660b039cf4" key="#[vars.instanceId as String]" objectStore="LatestLoggedDateTime">
+								<os:value><![CDATA[#[vars.latestLogTime as String]]]></os:value>
+							</os:store>
+							<set-variable value="#[vars.extractedLogs as String]" doc:name="Log Difference" doc:id="7d62a04c-7b16-445d-88ef-461150b663b8" variableName="logDifference" />
+						</on-error-continue>
+					</error-handler>
+				</try>
+	</sub-flow>
+	<sub-flow name="createFolderInBox_SF" doc:id="c7a6d062-b0c7-4566-9efb-530cbac867b7" >
+		<http:request method="POST" doc:name="Create Folder in Box" doc:id="790bf227-ca17-4413-a262-4aeb36af6c56" config-ref="HTTPS_Box_API_Config" path="/2.0/folders" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.boxAccessToken
+}]]]></http:headers>
+		</http:request>
+	</sub-flow>
+	<sub-flow name="uploadFileInBox_SF" doc:id="5967d1ec-0494-4e53-b1e5-a5c07bbf9a4e" >
+		<http:request method="POST" doc:name="Upload File in Box" doc:id="cccf171e-45e0-4b95-98a8-38f7a4c8fd15" config-ref="HTTPS_Box_Upload_Config" path="/2.0/files/content">
+					<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer " ++ vars.boxAccessToken
+}]]]></http:headers>
+				</http:request>
+	</sub-flow>
+</mule>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+<global-property name="env" value="dev" />
+	<configuration-properties doc:name="Configuration properties" doc:id="b0cf1b94-a1c0-4330-b82a-c43ef8a8dafb" file="global-properties.yaml" />
+    <configuration-properties doc:name="Configuration properties" doc:id="d4ec5059-a48a-44ad-91d3-7739bbfa9c37" file="${env}-properties.yaml" />
+    <tls:context name="TLS_Context" doc:name="TLS Context" doc:id="dc022b16-b2sd-4ba2-a486-9e4a38008ac4" >
+      <tls:key-store path="keystore/server.jks" alias="serverkey" keyPassword="muletest" password="muletest"/>
+    </tls:context>
+    	<http:listener-config name="HTTPS_Listener_config" doc:name="HTTPS Listener config" doc:id="5dc90cf8-fad8-4894-a8ef-518502e04b21">
+		<http:listener-connection protocol="HTTPS" host="0.0.0.0" port="${https.port}" tlsContext="TLS_Context" />
+	</http:listener-config>
+	<os:config name="ObjectStore_Config" doc:name="ObjectStore Config" doc:id="71bfc99d-3c6d-499a-95ab-ab96a406cbc4" >
+		<os:connection />
+	</os:config>
+	<os:object-store name="LatestLoggedDateTime" doc:name="Object store" doc:id="e244db7c-fc65-48a5-b962-9d89c59bf75a" entryTtl="7" entryTtlUnit="DAYS" expirationIntervalUnit="DAYS" config-ref="ObjectStore_Config" maxEntries="1000" expirationInterval="7"/>
+	<api-gateway:autodiscovery apiId="${apiid}" doc:name="API Autodiscovery" doc:id="82bc2e69-04c9-47f6-9345-1779ea49cbcc" flowRef="api-main" />	
+</mule>

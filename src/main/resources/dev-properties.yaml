@@ -1,0 +1,17 @@
+https:
+  port: "8082"
+
+scheduler: 
+  frequency:
+    hours: "24"
+    
+log:
+  archive:
+    environmentId: ""
+    excludeDomains: ""
+    
+anypoint:
+  login:
+    username: ""
+    password: ""
+    
