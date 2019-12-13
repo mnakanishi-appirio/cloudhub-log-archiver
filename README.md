@@ -1,7 +1,8 @@
 # CloudHub Log Archiver
 ## 概要
 ```
-Anypoint Platform の [Runtime Manager] - [Logs] で確認できるランタイムログを定期的に Box にアーカイブする Mule アプリケーションのサンプル実装です。
+Anypoint Platform の [Runtime Manager] - [Logs] で確認できるランタイムログを
+定期的に Box にアーカイブする Mule アプリケーションのサンプル実装です。
 ```
 
 ## 仕様
