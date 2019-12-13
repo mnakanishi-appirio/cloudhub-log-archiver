@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:request-config name="Access_Management_Config" doc:name="Access_Management_Config" doc:id="fb7721f3-65d4-43c0-8fe8-8101209e7738" basePath="/accounts" enableCookies="false">
+		<http:request-connection protocol="HTTPS" port="443" host="anypoint.mulesoft.com"/>
+	</http:request-config>
+	<http:request-config name="CloudHub_Config" doc:name="HTTP Request configuration" doc:id="79027b9f-6a00-459f-96e3-6e0be7801d9e" basePath="${mule.cloudhub.basepath}" enableCookies="false">
+		<http:request-connection protocol="HTTPS" host="${mule.cloudhub.host}" port="${mule.cloudhub.port}" />
+	</http:request-config>
+	<sub-flow name="loginCloudHub_SF" doc:id="fd406f20-c8bb-44bf-86e9-f67a4fa768d8" >
+		<http:request method="POST" doc:name="CloudHub Login" doc:id="3ef9ab88-b763-4b87-b261-4c8936172f54" config-ref="Access_Management_Config" path="/login" >
+		</http:request>
+		<logger level="DEBUG" doc:name="payload" doc:id="3c59b856-cc9b-4910-b418-963166cfa9d5" message="#[payload]" />
+		<set-variable value='#[payload.access_token as String default ""]' doc:name="AccessToken" doc:id="75729edc-853f-425c-bda6-d7269226c07b" variableName="accessToken"/>
+	</sub-flow>
+	<sub-flow name="invalidateCloudHubAccessToken_SF" doc:id="428ea8f9-79e1-4b3d-9385-dd9e5bac42c8" >
+		<http:request method="DELETE" doc:name="Invalidate CloudHub Token" doc:id="85bb836e-5fb2-456a-8634-4924d9941fda" config-ref="Access_Management_Config" path="/api/access_tokens/{access_token}" >
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"access_token" : vars.accessToken
+}]]]></http:uri-params>
+		</http:request>
+	</sub-flow>
+	<sub-flow name="logoutCloudHub_SF" doc:id="d4130b78-8a09-4970-8d6f-6621d155f02b">
+		<http:request method="GET" doc:name="logout from CloudHub" doc:id="e42be799-d03f-4bec-ab26-664d8a536b87" config-ref="Access_Management_Config" path="/api/logout">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"access_token" : vars.accessToken
+}]]]></http:uri-params>
+		</http:request>
+	</sub-flow>
+	<sub-flow name="getCloudHubApplications_SF" doc:id="4d6d7159-2f2d-4ca2-82bd-4f00ee20bf37">
+		<http:request method="GET" doc:name="CloudHub Applications" doc:id="fc8027b1-4be5-46b6-96c1-c6f5097648dd" config-ref="CloudHub_Config" path="/v2/applications">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"retrieveStatistics" : false,
+	"retrieveIpAddresses" : false,
+	"retrieveLogLevels" : false,
+	"retrieveTrackingSettings" : false,
+	"period" : 3600000
+}]]]></http:query-params>
+		</http:request>
+		<logger level="DEBUG" doc:name="payload" doc:id="a8ce48d5-f3cb-480d-8382-760eaf91cb6f" message="#[payload]" />
+		<set-variable value="#[payload flatMap(item, i) -&gt; (
+	[item.domain as String]
+)]" doc:name="AllDomains" doc:id="edac675c-40f0-4014-8a71-3f258654ef7b" variableName="allDomains" />
+	</sub-flow>
+	<sub-flow name="getCloudHubDeployments_SF" doc:id="a4d1730c-473e-4b9d-9d57-0831d0669fbc" >
+		<http:request method="GET" doc:name="CloudHub Deployment" doc:id="12ba2102-f130-4d47-832c-a51bdbb9127e" config-ref="CloudHub_Config" path="/v2/applications/{domain}/deployments" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"domain" : vars.targetDomain
+}]]]></http:uri-params>
+		</http:request>
+		<logger level="DEBUG" doc:name="payload" doc:id="1bd951f2-f8c7-4700-b66c-7bee85b46788" message="#[payload]" />
+		<set-variable value="#[payload.data]" doc:name="Deployments" doc:id="a5e623f4-3962-4822-b9cd-3be7e6198d30" variableName="deployments" />
+	</sub-flow>
+	<sub-flow name="getCloudHubLogFiles_SF" doc:id="e00767a1-f3ef-4975-aa58-5f9308329b2e" >
+		<http:request method="GET" doc:name="CloudHub Log" doc:id="2181b9ba-0f6d-49a2-9ed2-c025e47907b4" config-ref="CloudHub_Config" path="/v2/applications/{domain}/instances/{instanceId}/log-file" >
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"X-ANYPNT-ENV-ID" : vars.environmentId,
+	"Authorization" : 'Bearer ' ++ vars.accessToken
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"domain" : vars.targetDomain,
+	"instanceId" : vars.instanceId
+}]]]></http:uri-params>
+		</http:request>
+		<logger level="DEBUG" doc:name="payload" doc:id="32e4b098-08d3-4ee7-87bb-18093d765085" message="#[payload]" />
+		<set-variable value="#[payload as String]" doc:name="ExtractedLogs" doc:id="fd5ac0ff-9837-44bc-85b6-47b7f7dfaaca" variableName="extractedLogs" mimeType="application/json" />
+	</sub-flow>
+</mule>

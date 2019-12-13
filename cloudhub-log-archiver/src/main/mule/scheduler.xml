@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="Log_Archive_Scheduler_Flow" doc:id="10282280-9412-422f-a7dc-cec05fb74c58" initialState="started" >
+		<scheduler doc:name="Archive Log Scheduler" doc:id="b661ec40-c278-49d2-9060-576537beeb1e" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="${scheduler.frequency.hours}" timeUnit="HOURS" />
+			</scheduling-strategy>
+		</scheduler>
+		<flow-ref doc:name="archiveCloudHubLog_Main" doc:id="d5442e64-7120-40fe-aae2-c86b48fdf1ab" name="archiveCloudHubLog_Main_SF" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="753a800f-8c57-4ca3-a172-a4bda94ffb96" type="ANY" >
+				<logger level="ERROR" doc:name="Request payload" doc:id="1f70b857-6e68-4535-b26c-c1f5ca84da40" message="#['\nRequest Payload:'] #[message.payload]" />
+				<logger level="ERROR" doc:name="Response payload" doc:id="7a687d62-f5e3-44c6-b653-93f08c8421f5" message="#[var resPayload = error.muleMessage.payload 
+---
+'\nResponse Payload: '] #[message.payload]" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
